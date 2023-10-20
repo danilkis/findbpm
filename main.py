@@ -1,31 +1,5 @@
 import librosa
-import logging
-import io
 import keyfinder
-
-log_stream = io.StringIO()
-logging.basicConfig(stream=log_stream, level=logging.INFO)
-
-from progress.bar import Bar
-
-def find_bpm(File: str):
-    print("-----------------------")
-    y, sr = librosa.load(File)
-    print("Файл: " + File)
-    tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
-    first_beat_time, last_beat_time = librosa.frames_to_time((beats[0], beats[-1]), sr=sr)
-    tempo = (60 / ((last_beat_time - first_beat_time) / (len(beats) - 1)))
-    print(tempo)
-    return tempo
-
-def find_key(File: str):
-    y, sr = librosa.load(File)
-    y_harmonic, y_percussive = librosa.effects.hpss(y)
-    unebarque_fsharp_maj = keyfinder.Tonal_Fragment(y_harmonic, sr, tend=22)
-    key = str(unebarque_fsharp_maj.print_key())
-    print("Тональность: " + key)
-    return key
-
 import eyed3
 import os
 import shutil
@@ -39,12 +13,42 @@ import io
 log_stream = io.StringIO()
 logging.basicConfig(stream=log_stream, level=logging.INFO)
 
+from alive_progress import alive_bar
+
+
+def find_bpm(File: str):
+    #print("-----------------------")
+    global track_id
+    global folder_cover
+    y, sr = librosa.load(File)
+    #print("Файл: " + File + " Номер трека: " + str(track_id))
+    tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
+    first_beat_time, last_beat_time = librosa.frames_to_time((beats[0], beats[-1]), sr=sr)
+    tempo = (60 / ((last_beat_time - first_beat_time) / (len(beats) - 1)))
+    #print(round(tempo))
+    return round(tempo)
+
+def find_key(File: str):
+    y, sr = librosa.load(File, duration=120)
+    y_harmonic, y_percussive = librosa.effects.hpss(y)
+    unebarque_fsharp_maj = keyfinder.Tonal_Fragment(y_harmonic, sr, tend=22)
+    key = str(unebarque_fsharp_maj.print_key())
+    #print("Тональность: " + key)
+    return key
+
+log_stream = io.StringIO()
+logging.basicConfig(stream=log_stream, level=logging.INFO)
+
 from progress.bar import Bar
 
-read_folder = "/Volumes/Danon_work"
-save_folder = "/Volumes/USB DISK"
+read_folder = "D:/"   #"/Volumes/Danon_work"
+save_folder =  "F:/" #"/Volumes/USB DISK"
 track_id = 0
-def i_mp_file(save_folder, name, file: str):
+folder_cover = ""
+folder_mp3 = ""
+def i_mp_file(save_folder, name, file: str, folder):
+    global folder_cover
+    global folder_mp3
     audiofile = eyed3.load(file)
     images = audiofile.tag.images
     if not os.path.isdir(save_folder):
@@ -57,32 +61,32 @@ def i_mp_file(save_folder, name, file: str):
 
     with open(f'{save_folder}/{name}/{name}.jpg', 'wb+') as file:
         file.write(images[0].image_data)
-
+    folder_cover = f'{folder}/{name}/{name}.jpg'
+    folder_mp3 = f'{folder}/{name}/{name}.mp3'
 
 def forlder_down(folder: str):
-    db.connect()
+    global track_id
+    global folder_cover
+    global folder_mp3
     directory = f"{read_folder}/{folder}"
     folder_save = f"{save_folder}/{folder}"
 
     list_mp = [_ for _ in os.listdir(directory) if
                (not ("._" in os.path.splitext(_)[0] or "." == os.path.splitext(_)[0][0]))]
-
-    bar = Bar(f'Processing \'{folder}\'', max=len(list_mp))
-
-    for filename in list_mp:
-        try:
-            name_file = os.path.splitext(filename)[0]
-            path_file = os.path.join(directory, filename)
-            i_mp_file(folder_save, name_file, path_file)
-            bpm = find_bpm(path_file)
-            key = find_key(path_file)
-            db.insert_data("music", (track_id, name_file, bpm, key))
-            track_id = track_id + 1
-            bar.next()
-        except:
-            print("D")
-    db.close()
-    bar.finish()
+    with alive_bar(len(list_mp)) as bar:
+        for filename in list_mp:
+            try:
+                name_file = os.path.splitext(filename)[0]
+                path_file = os.path.join(directory, filename)
+                i_mp_file(folder_save, name_file, path_file, folder)
+                bpm = find_bpm(path_file)
+                key = find_key(path_file)
+                db.insert_data("music", (track_id, folder_cover,folder_mp3, bpm, key))
+                track_id = track_id + 1
+                bar()
+            except Exception as e:
+                # handle the exception
+                print("An exception occurred:", e)  # An exception occurred: division by zero
 
 
 def start():
@@ -120,7 +124,7 @@ class Database:
             insert_query = f"INSERT INTO {table_name} VALUES ({', '.join(['?'] * len(data))})"
             self.cursor.execute(insert_query, data)
             self.connection.commit()
-            print("Данные успешно вставлены")
+            #print("Данные успешно вставлены")
         except sqlite3.Error as e:
             print(f"Ошибка при вставке данных: {e}")
 
@@ -143,6 +147,6 @@ class Database:
 if __name__ == "__main__":
     db = Database()
     db.connect()
-    db.create_table("music", "id INTEGER PRIMARY KEY, name TEXT, bpm INTEGER, key TEXT")
+    db.create_table("music", "id INTEGER PRIMARY KEY, path_cover TEXT,path_mp3 TEXT, bpm INTEGER, key INTEGER")
     start()
     db.close()

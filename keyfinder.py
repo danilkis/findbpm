@@ -4,12 +4,6 @@ import IPython.display as ipd
 import librosa
 import librosa.display
 
-
-# class that uses the librosa library to analyze the key that an mp3 is in
-# arguments:
-#     waveform: an mp3 file loaded by librosa, ideally separated out from any percussive sources
-#     sr: sampling rate of the mp3, which can be obtained when the file is read with librosa
-#     tstart and tend: the range in seconds of the file to be analyzed; default to the beginning and end of file if not specified
 class Tonal_Fragment(object):
     def __init__(self, waveform, sr, tstart=None, tend=None):
         self.waveform = waveform
@@ -80,7 +74,8 @@ class Tonal_Fragment(object):
 
     # printout of the key determined by the algorithm; if another key is close, that key is mentioned
     def print_key(self):
-       return max(self.key_dict, key=self.key_dict.get)
+        key = max(self.key_dict, key=self.key_dict.get)
+        return list(self.key_dict.keys()).index(key)
 
     # prints a chromagram of the file, showing the intensity of each pitch class over time
     def chromagram(self, title=None):
