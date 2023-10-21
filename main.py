@@ -41,8 +41,8 @@ logging.basicConfig(stream=log_stream, level=logging.INFO)
 
 from progress.bar import Bar
 
-read_folder = "D:/"   #"/Volumes/Danon_work"
-save_folder =  "F:/" #"/Volumes/USB DISK"
+read_folder = "/Volumes/Danon_work"
+save_folder =  "/Volumes/USB DISK"
 track_id = 0
 folder_cover = ""
 folder_mp3 = ""
